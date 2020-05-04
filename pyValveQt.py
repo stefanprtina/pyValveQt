@@ -3,8 +3,10 @@ from timeit import default_timer as timer
 import serial
 import serial.tools.list_ports
 from PyQt5 import QtCore, QtGui, QtWidgets
+import sqlite3
 import pyqtgraph as pg
 import sys
+from transmiteri import Ui_Podesavanja
 
 pg.setConfigOption('foreground', 'k')
 pg.setConfigOption('background', 'w')
@@ -21,7 +23,7 @@ class Ui_MainApp(QtWidgets.QMainWindow):
         self.plotting = False
         self.plots = []
         self.activeplot = 0
-
+        self.db = dbHandler(MainApp)
 
     def plotData(self):
 
@@ -60,6 +62,9 @@ class Ui_MainApp(QtWidgets.QMainWindow):
         self.dataX.append(timeElapsed)
 
         self.line.setData(self.dataX, self.dataY)
+
+    def showSettings(self,MainApp):
+        Podesavanja.show()
 
     def setupUi(self, MainApp):
 
@@ -309,6 +314,7 @@ class Ui_MainApp(QtWidgets.QMainWindow):
 
         self.menuPodesavanja = QtWidgets.QAction(MainApp)
         self.menuPodesavanja.setObjectName("menuPodesavanja")
+        self.menuPodesavanja.triggered.connect(self.showSettings)
 
         self.menuGlavni_meni.addSeparator()
         self.menuGlavni_meni.addAction(self.menuPodesavanja)
@@ -380,6 +386,7 @@ class Ui_MainApp(QtWidgets.QMainWindow):
 class serialCom():
 
     def __init__(self):
+        super().__init__()
         self.ser = ""
 
     def open(self):
@@ -413,6 +420,40 @@ class serialCom():
             return data[-2]
         return False
 
+class dbHandler(object):
+    def __init__(self, MainApp):
+        super().__init__()
+        self.db = QtSql.QSqlDatabase.addDatabase("QSQLITE")
+        self.db.setDatabaseName("transmiteri")
+        connection = self.db.open()
+        if(connection):
+            self.query = QtSql.QSqlQuery()
+            self.query.exec(
+                '''CREATE TABLE IF NOT EXISTS 
+                transmiteri (id int primary key, 
+                'serbroj' TEXT NOT NULL, 
+                'maxpritisak' INT NOT NULL, 
+                'proizvodjac' TEXT NOT NULL, 
+                'datumkal' TEXT NOT NULL, 
+                'greskanula' VARCHAR(50) NOT NULL,
+                'greskapola' VARCHAR(50) NOT NULL,
+                'greskamaks' VARCHAR(50) NOT NULL)''')
+        else:
+            print('DB Connection error')
+
+    def getRows(self):
+        rows = self.query.exec("SELECT * FROM transmiteri")
+        return rows
+
+    def insertRow(self, data):
+        querytext = "INSERT INTO transmiteri VALUES ('', '" + data[0]+"', '" + data[1] + "', '" +data[2]+"', '"+data[3]+"', '"+data[4]+"', '"+data[5]+"', '"+data[6]
+        querytext+="')"
+        success = self.query.exec(querytext)
+        print(querytext)
+        print(success)
+        return success
+
+
 
 if __name__ == "__main__":
     import sys
@@ -420,5 +461,8 @@ if __name__ == "__main__":
     MainApp = QtWidgets.QMainWindow()
     ui = Ui_MainApp()
     ui.setupUi(MainApp)
+    Podesavanja = QtWidgets.QWidget()
+    ui2 = Ui_Podesavanja(ui)
+    ui2.setupUi(Podesavanja)
     MainApp.show()
     sys.exit(app.exec_())
